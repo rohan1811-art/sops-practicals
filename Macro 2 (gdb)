@@ -1,0 +1,99 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+void main()
+{
+    int j = 0, k;
+    char mname[20], word[20];  // Increased mname to 20 to prevent overflow
+    FILE *fop, *fmnt, *fmdt, *fir;
+
+    // Open files and check if they opened successfully
+    fop = fopen("output.dat", "w");
+    fmnt = fopen("mnt.dat", "r");
+    fmdt = fopen("mdt.dat", "r");
+    fir = fopen("ir.dat", "r");
+
+    if (!fop || !fmnt || !fmdt || !fir) {
+        printf("Error opening one or more files.\n");
+        return;
+    }
+
+    while (fgets(word, sizeof(word), fir))  // Read instruction safely
+    {
+        rewind(fmnt);  // Restart MNT table
+        fscanf(fmnt, "%d", &k);  // Ignore number
+
+        while (fgets(mname, sizeof(mname), fmnt))  // Read safely
+        {
+            if (!strcmp(word, mname)) {
+                j = 1;
+                break;  // Found macro call
+            }
+            fscanf(fmnt, "%d", &k);  // Ignore number again
+        }
+
+        if (j == 1)
+        {
+            j = 0;
+            fscanf(fmdt, "%s", mname);
+            while (strcmp(word, mname)) // Search for macro in MDT
+            {
+                fgets(mname, sizeof(mname), fmdt);
+                fscanf(fmdt, "%d", &k);
+            }
+
+            fgets(word, sizeof(word), fmdt);
+            while (strcmp(word, " MEND\n")) // Copy macro definition
+            {
+                fprintf(fop, "%s", word);
+                fscanf(fmdt, "%d", &k);
+                fgets(word, sizeof(word), fmdt);
+            }
+        }
+        else  // No macro, write instruction as is
+        {
+            fprintf(fop, "%s", word);
+        }
+    }
+
+    printf("Action taken.\n");
+
+    // Close files properly
+    fclose(fop);
+    fclose(fmnt);
+    fclose(fmdt);
+    fclose(fir);
+}
+
+# ir.dat
+ START 
+ MOVER AREG A
+ MOVER BREG B
+ ADDITION
+ STORE X
+ A DS 5
+ B DC 10
+ C DC 15
+
+# mdt.dat
+
+ 1 ADDITION
+ 2 LOAD A
+ 3 ADD AREG B
+ 4 ADD AREG C
+ 5 MEND
+ 6 ADDITION1
+ 7 LOAD A
+ 8 ADD AREG B
+ 9 ADD AREG C
+ 10 MEND
+ 11 END 
+ 12 END 
+ 13 END
+
+# mnt.dat
+
+ 1 ADDITION
+ 2 ADDITION1
+ 3 END
