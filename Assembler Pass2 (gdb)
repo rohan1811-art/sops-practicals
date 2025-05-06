@@ -1,72 +1,68 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 
-#define MAX_LINES 100
-#define MAX_LEN 50
-
-typedef struct {
-    char label[MAX_LEN];
+struct symbol {
+    char name[20];
     int address;
-    char value[MAX_LEN];
-} Symbol;
+} sy[20];
 
-Symbol symtab[MAX_LINES];
-int symCount = 0;
+struct literal {
+    char name;
+    int address;
+} lit[20];
 
-int findSymbol(char *label) {
-    for (int i = 0; i < symCount; i++) {
-        if (strcmp(symtab[i].label, label) == 0) {
-            return symtab[i].address;
-        }
-    }
-    return -1;
-}
-
-void addSymbol(char *label, int address, char *value) {
-    strcpy(symtab[symCount].label, label);
-    symtab[symCount].address = address;
-    strcpy(symtab[symCount].value, value);
-    symCount++;
-}
-
-void pass2(FILE *input) {
-    char line[MAX_LEN], opcode[MAX_LEN], operand1[MAX_LEN], operand2[MAX_LEN];
-    int lc = 0;
+void main() {
+    FILE *fir, *fout;
+    char line[20], op[3], type;
+    int operand, address, ns = 0, nl = 0, lc = 0;
     
-    while (fgets(line, sizeof(line), input)) {
-        if (sscanf(line, "%s %s %s", opcode, operand1, operand2) >= 1) {
-            if (strcmp(opcode, "START") == 0 || strcmp(opcode, "END") == 0) {
-                continue;
+    fir = fopen("ir.dat", "r");
+    fout = fopen("output.txt", "w");
+    
+    // Manually initializing symbol table from Pass 1 output
+    sy[0].address = 105; // S0
+    sy[1].address = 105; // S1
+    ns = 2;
+    
+    // Manually initializing literal table from Pass 1 output
+    lit[0].address = 108; // L0
+    lit[1].address = 109; // L1
+    nl = 2;
+    
+    while (fscanf(fir, "%s", line) != EOF) {
+        sscanf(line, "%2s%d%c%d", op, &operand, &type, &address);
+        
+        if (strcmp(op, "AD") == 0) {
+            if (operand == 1) {
+                lc = address; // Set LC from START directive
             }
-            else if (strcmp(opcode, "MOVER") == 0 || strcmp(opcode, "STORE") == 0) {
-                int addr = findSymbol(operand2);
-                if (addr != -1) {
-                    printf("%d: %s %s %d\n", lc, opcode, operand1, addr);
-                } else {
-                    printf("%d: %s %s %s\n", lc, opcode, operand1, operand2);
-                }
+        } else if (strcmp(op, "IS") == 0) {
+            fprintf(fout, "%d %d ", lc, operand);
+            if (type == 'S') {
+                fprintf(fout, "%d\n", sy[address].address);
+            } else if (type == 'L') {
+                fprintf(fout, "%d\n", lit[address].address);
+            } else {
+                fprintf(fout, "%d\n", address);
             }
-            else if (strcmp(opcode, "ADD") == 0) {
-                printf("%d: ADD\n", lc);
+            lc++;
+        } else if (strcmp(op, "DL") == 0) {
+            if (operand == 1) {
+                fprintf(fout, "%d %d %d\n", lc, operand, address);
             }
-            else if (strcmp(opcode, "DS") == 0 || strcmp(opcode, "DC") == 0) {
-                addSymbol(operand1, lc, operand2);
-            }
+            lc++;
+        } else if (strcmp(op, "AD") == 0 && operand == 2) {
+            lit[nl].name = (char)address;
+            lit[nl].address = lc;
+            nl++;
             lc++;
         }
     }
-}
-
-int main() {
-    FILE *input = fopen("ir.dat", "r");
-    if (!input) {
-        printf("Error opening file ir.dat\n");
-        return 1;
-    }
-    pass2(input);
-    fclose(input);
-    return 0;
+    
+    fclose(fir);
+    fclose(fout);
+    printf("Pass 2 completed. Output saved in output.txt\n");
 }
 
 # ir.dat
